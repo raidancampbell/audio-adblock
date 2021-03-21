@@ -33,6 +33,8 @@ func main() {
 
 	// test data has 123ms per fingerprint item
 	fmt.Printf("found subsequence of length %s\n", time.Millisecond * time.Duration(fprintStop - fprintStart) * 123)
+	fmt.Printf("location by millisecond offset: start %s, end: %s\n", time.Duration(fprintStart) * 123 * time.Millisecond,  time.Duration(fprintStop) * 123 * time.Millisecond)
+	fmt.Printf("location by bytes offset: start %f, end: %f\n", float64(fprintStart * samples2 * 2 * 2)/float64(len(data2)),  float64(fprintStop * samples2 * 2 * 2)/float64(len(data2)))
 
 	var context *oto.Context
 	var err error
@@ -93,7 +95,7 @@ func longestCommonSubsequence(A, B []int32) int {
 }
 
 func getLongestSubsequence(A, B []int32) (int, int) {
-	tmp := float64(math.MaxInt32) * 0.3
+	tmp := float64(math.MaxInt32) * 0.4
 	tolerance := int32(tmp)
 
 	maxStart := 0
@@ -102,6 +104,11 @@ func getLongestSubsequence(A, B []int32) (int, int) {
 	startIdx := 0
 	stopIdx := -1
 
+	//TODO: the logic on this is wrong
+	// it finds the longest subsequence in B that looks like a single item in A
+	// what I really need is a suffix array
+	// https://github.com/vmarkovtsev/go-lcss
+	// and https://en.wikipedia.org/wiki/Suffix_array
 	for j := 0; j < len(A); j++ {
 		for i := 0; i < len(B); i++ {
 			if int32Abs(int32Abs(B[i])-int32Abs(A[j])) < tolerance {
@@ -190,6 +197,12 @@ func rawFingerprint(i fingerprint.RawInfo) ([]int32, int, error) {
 	samples := ctx.GetItemDurationSamples()
 	dur := ctx.GetItemDuration()
 	fmt.Printf("duration per item %s\n", dur.String()) // 123
+	//1000 / 123 = 8.130081301
+	//TODO: these numbers do not agree for a sample rate of  44100
 	fmt.Printf("samples per item %d\n", samples) // 1365
+	// 1365 * 4 = 5460; 44100/5460 = 8.076923077
+	// close enough?
+	//TODO: where does the 4 come from with the samples?  Need to read the source
+	// TODO: print timestamps of start and stop.  Also potentially multiply both by 4?
 	return fprint, samples, err
 }
