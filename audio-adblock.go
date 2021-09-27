@@ -27,10 +27,10 @@ func main() {
 	data1 := []byte{}
 	var samples1 int
 	go func() {
-		data1, one, samples1 = readFile("input/95.mp3")
+		data1, one, samples1 = readFile("input/94.mp3")
 		wg.Done()
 	}()
-	data2, two, samples2 := readFile("input/95.mp3")
+	data2, two, samples2 := readFile("input/96.mp3")
 	wg.Wait()
 
 	fmt.Println("files read in.  Finding longest subsequences...")
@@ -49,12 +49,8 @@ func main() {
 	}
 	defer of.Close()
 	enc := lame.NewEncoder(of)
-	//defer enc.Close()
 
-	// TODO: make this a fraction times samples2
-	// start == (bstop-length);
-	// start is the index of the first matching sample
-	r := bytes.NewBuffer(data2[(bStart * samples2 * 4):(bStop * samples2 * 4)])
+	r := bytes.NewBuffer(data2[(bStart * samples2 * 4*4):(bStop * samples2 * 4*4)])
 	r.WriteTo(enc)
 	enc.Close()
 
@@ -66,9 +62,10 @@ func main() {
 	enc = lame.NewEncoder(of)
 	defer enc.Close()
 
-	r = bytes.NewBuffer(data1[(aStart * samples1 * 4):(aStop * samples1 * 4)])
+	r = bytes.NewBuffer(data1[(aStart * samples1 * 4*4):(aStop * samples1 * 4*4)])
 	r.WriteTo(enc)
 	enc.Close()
+
 }
 
 func int32Abs(i int32) int32 {
