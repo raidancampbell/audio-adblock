@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"github.com/go-fingerprint/fingerprint"
 	"github.com/go-fingerprint/gochroma"
-	"github.com/hajimehoshi/oto"
 	"github.com/raidancampbell/gochroma/chromaprint"
 	"github.com/tosone/minimp3"
 	"github.com/viert/go-lame"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -22,108 +21,54 @@ func main() {
 	// 94-95 had 14,938 at 95% similarity. 7213 at 99.5% similarity.  4581 at 99.9%. 2771 at 99.99%
 	// 95-96 had 16,660
 
-	_, one, _ := readFile("input/95.mp3")
-	data2, two, samples2 := readFile("input/96.mp3")
-	//fmt.Println(dur2.String())
-	//three := readFile("input/96.mp3")
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	one := []int32{}
+	data1 := []byte{}
+	var samples1 int
+	go func() {
+		data1, one, samples1 = readFile("input/95.mp3")
+		wg.Done()
+	}()
+	data2, two, samples2 := readFile("input/95.mp3")
+	wg.Wait()
 
 	fmt.Println("files read in.  Finding longest subsequences...")
-	//fmt.Println(longestCommonSubsequence(one, two))
-	fprintStart, fprintStop := getLongestSubsequence(one, two)
+	length, aStop, bStop := LCSub(one, two)
+	bStart := (bStop - length) + 1
+	aStart := (aStop - length) + 1
 
 	// test data has 123ms per fingerprint item
-	fmt.Printf("found subsequence of length %s\n", time.Millisecond * time.Duration(fprintStop - fprintStart) * 123)
-	fmt.Printf("location by millisecond offset: start %s, end: %s\n", time.Duration(fprintStart) * 123 * time.Millisecond,  time.Duration(fprintStop) * 123 * time.Millisecond)
-	fmt.Printf("location by bytes offset: start %f, end: %f\n", float64(fprintStart * samples2 * 2 * 2)/float64(len(data2)),  float64(fprintStop * samples2 * 2 * 2)/float64(len(data2)))
+	fmt.Printf("found subsequence of length %s\n", time.Millisecond*time.Duration(length)*123/4)
+	fmt.Printf("location by millisecond offset in A: start %s, end: %s\n", time.Duration(aStart)*(123/4)*time.Millisecond, time.Duration(aStop)*(123/4)*time.Millisecond)
+	fmt.Printf("location by millisecond offset in B: start %s, end: %s\n", time.Duration(bStart)*(123/4)*time.Millisecond, time.Duration(bStop)*(123/4)*time.Millisecond)
 
-	var context *oto.Context
-	var err error
-	if context, err = oto.NewContext(44100, 2, 2, 1024); err != nil {
-		panic(err)
-	}
-	defer context.Close()
-
-	var player = context.NewPlayer()
-	// item starting point * samples per item * channels * bit depth
-	fmt.Printf("expected bytes: %d\n", (fprintStop * samples2 * 2 * 2) - (fprintStart * samples2 * 2 * 2))
-	bytesWritten, err := player.Write(data2[(fprintStart * samples2 * 2 * 2) : (fprintStop * samples2 * 2 * 2)])
-	fmt.Printf("wrote %d bytes to audio\n", bytesWritten)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("write complete, waiting 1 seconds to close player")
-
-	<-time.After(1 * time.Second)
-
-	if err := player.Close(); err != nil {
-		log.Fatal(err)
-	}
-
-
-	of, err := os.Create("output.mp3")
+	of, err := os.Create("outputB.mp3")
 	if err != nil {
 		panic(err)
 	}
 	defer of.Close()
 	enc := lame.NewEncoder(of)
+	//defer enc.Close()
+
+	// TODO: make this a fraction times samples2
+	// start == (bstop-length);
+	// start is the index of the first matching sample
+	r := bytes.NewBuffer(data2[(bStart * samples2 * 4):(bStop * samples2 * 4)])
+	r.WriteTo(enc)
+	enc.Close()
+
+	of, err = os.Create("outputA.mp3")
+	if err != nil {
+		panic(err)
+	}
+	defer of.Close()
+	enc = lame.NewEncoder(of)
 	defer enc.Close()
 
-	r := bytes.NewBuffer(data2[(fprintStart * samples2 * 2 * 2) : (fprintStop * samples2 * 2 * 2)])
+	r = bytes.NewBuffer(data1[(aStart * samples1 * 4):(aStop * samples1 * 4)])
 	r.WriteTo(enc)
-
-}
-
-func longestCommonSubsequence(A, B []int32) int {
-	tmp := float64(math.MaxInt32) * 0.0001
-	tolerance := int32(tmp)
-
-	pre := make([]int, len(B)+1)
-	cur := make([]int, len(B)+1)
-
-	for j := 0; j < len(A); j++ {
-		for i := 0; i < len(B); i++ {
-			temp := max(pre[i+1], cur[i])
-			if int32Abs(int32Abs(B[i])-int32Abs(A[j])) < tolerance {
-				cur[i+1] = max(temp, pre[i]+1)
-			} else {
-				cur[i+1] = temp
-			}
-		}
-		cur, pre = pre, cur
-	}
-	return pre[len(B)]
-}
-
-func getLongestSubsequence(A, B []int32) (int, int) {
-	tmp := float64(math.MaxInt32) * 0.4
-	tolerance := int32(tmp)
-
-	maxStart := 0
-	maxLen := 0
-
-	startIdx := 0
-	stopIdx := -1
-
-	//TODO: the logic on this is wrong
-	// it finds the longest subsequence in B that looks like a single item in A
-	// what I really need is a suffix array
-	// https://github.com/vmarkovtsev/go-lcss
-	// and https://en.wikipedia.org/wiki/Suffix_array
-	for j := 0; j < len(A); j++ {
-		for i := 0; i < len(B); i++ {
-			if int32Abs(int32Abs(B[i])-int32Abs(A[j])) < tolerance {
-				if stopIdx != i-1 {
-					startIdx = i
-				}
-				stopIdx = i
-			}
-			if stopIdx-startIdx > maxLen {
-				maxStart = startIdx
-				maxLen = stopIdx - startIdx
-			}
-		}
-	}
-	return maxStart, maxStart+maxLen
+	enc.Close()
 }
 
 func int32Abs(i int32) int32 {
@@ -151,8 +96,6 @@ func readFile(filename string) ([]byte, []int32, int) {
 		panic(err)
 	}
 
-	fpcalc := gochroma.New(gochroma.AlgorithmDefault)
-	defer fpcalc.Close()
 	fprint, samples, err := rawFingerprint(
 		fingerprint.RawInfo{
 			Src:        bytes.NewReader(data),
@@ -169,27 +112,19 @@ func rawFingerprint(i fingerprint.RawInfo) ([]int32, int, error) {
 	ctx := chromaprint.NewChromaprint(gochroma.AlgorithmDefault)
 	defer ctx.Free()
 
-	if i.MaxSeconds < 120 {
-		i.MaxSeconds = 120
-	}
 	rate, channels := i.Rate, i.Channels
 	if err := ctx.Start(int(rate), int(channels)); err != nil {
 		return nil, 0, err
 	}
-	numbytes := 2 * 10 * rate * channels
-	buf := make([]byte, numbytes)
-	for total := uint(0); total <= i.MaxSeconds; total += 10 {
-		read, err := i.Src.Read(buf)
-		if err != nil && err != io.EOF {
-			return nil, 0, err
-		}
-		if read == 0 {
-			break
-		}
-		if err := ctx.Feed(buf[:read]); err != nil {
-			return nil, 0, err
-		}
+
+	read, err := io.ReadAll(i.Src)
+	if err != nil && err != io.EOF {
+		return nil, 0, err
 	}
+	if err := ctx.Feed(read); err != nil {
+		return nil, 0, err
+	}
+
 	if err := ctx.Finish(); err != nil {
 		return nil, 0, err
 	}
