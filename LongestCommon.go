@@ -1,27 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
+
 // TOLERANCE_FACTOR holds "how close, across the range of all int32 values,
 // should two values be in order for them to be considered equal"
-const TOLERANCE_FACTOR = 0.3
+const TOLERANCE_FACTOR = 0.05
 
-// LCSub finds the longest common subsequence of the given int32 slices
+// LCSubs finds the longest common subsequence of the given int32 slices
 // the length and stop locations of each input are returned
 // implementation is from wikipedia's pseudocode: https://en.wikipedia.org/wiki/Longest_common_substring_problem
-func LCSub(a, b []int32) (length, aStop, bStop float64) {
+func LCSubs(a, b []int32, gt int) (matches []Match) {
 	tmp := float64(math.MaxInt32) * TOLERANCE_FACTOR
 	tolerance := int32(tmp)
 	r, n := len(a), len(b)
-	var stopA, stopB int
-	z := 0
 	l := make([][]int32, r)
 	for i := range l {
 		l[i] = make([]int32, n)
 	}
-	var ret []int32
 	for i := 0; i < r; i++ {
 		for j := 0; j < n; j++ {
 			if closeEnough(a[i], b[j], tolerance) {
@@ -30,21 +27,24 @@ func LCSub(a, b []int32) (length, aStop, bStop float64) {
 				} else {
 					l[i][j] = l[i-1][j-1] + 1
 				}
-				if int(l[i][j]) > z {
-					stopA = i
-					stopB = j
-					z = int(l[i][j])
-					ret = a[i-z + 1:i]
-				} else if int(l[i][j]) == z {
-					// ret := ret ∪ {S[i − z + 1..i]}
-				}
-			} else {
-				//l[i][j] = 0
 			}
 		}
 	}
-	_ = fmt.Sprintf("%d", ret) // just in case I want it later
-	return float64(z), float64(stopA), float64(stopB)
+
+	for i := 1; i < r; i++ {
+		for j := 1; j < n; j++ {
+			if int(l[i][j]) > gt {
+				if i == r-1 || j == n-1 || int(l[i+1][j+1]) != int(l[i][j])+1 {
+					matches = append(matches, Match{AStop: float64(i), BStop: float64(j), length: float64(l[i][j])})
+				}
+			}
+		}
+	}
+	return matches
+}
+
+type Match struct {
+	AStop, BStop, length float64
 }
 
 func closeEnough(A, B, tolerance int32) bool {

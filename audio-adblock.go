@@ -11,6 +11,8 @@ import (
 
 // 16-bit audio == 2 bytes
 const byteDepth = 2.0
+// what's the smallest subsequence in seconds that should be considered a duplicate
+const minDurationSec = 5.0
 
 func main() {
 	fmt.Println("reading in files...")
@@ -33,20 +35,25 @@ func main() {
 	wg.Wait()
 
 	fmt.Println("files read in.  Finding longest subsequences...")
-	length, aStop, bStop := LCSub(metadata1.fingerprints, metadata2.fingerprints)
-	fmt.Printf("found subsequence of length %s\n", time.Duration((metadata1.calcSamplesPerFprint/metadata1.fprintSampleRate)*length*float64(time.Second)))
+	gt := minDurationSec/(metadata1.calcSamplesPerFprint/metadata1.fprintSampleRate)
 
-	aStart := (aStop - length) + 1
-	bStart := (bStop - length) + 1
+	matches := LCSubs(metadata1.fingerprints, metadata2.fingerprints, int(gt))
+	for matchNum, match := range matches {
+		fmt.Printf("found subsequence %d of length %s\n", matchNum, time.Duration((metadata1.calcSamplesPerFprint/metadata1.fprintSampleRate)*match.length*float64(time.Second)))
 
-	fmt.Println("writing matches to files...")
-	wg.Add(1)
-	go func() {
-		writeMatchesToFile("outputA.mp3", metadata1, aStart, aStop, data1)
-		wg.Done()
-	}()
-	writeMatchesToFile("outputB.mp3", metadata2, bStart, bStop, data2)
-	wg.Wait()
+		aStart := (match.AStop - match.length) + 1
+		bStart := (match.BStop - match.length) + 1
+
+		fmt.Printf("writing match %d to files...\n", matchNum)
+		wg.Add(1)
+		go func() {
+			writeMatchesToFile(fmt.Sprintf("outputA-%d.mp3", matchNum), metadata1, aStart, match.AStop, data1)
+			wg.Done()
+		}()
+		writeMatchesToFile(fmt.Sprintf("outputB-%d.mp3", matchNum), metadata2, bStart, match.BStop, data2)
+		wg.Wait()
+	}
+
 }
 
 // writeMatchesToFile is a function useful for debugging: given a data/metadata stream and the start/stop indices of the
