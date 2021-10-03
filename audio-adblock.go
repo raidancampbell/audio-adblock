@@ -75,8 +75,10 @@ func writeMatchesToFile(filename string, metadata audioMetadata, fprintStart, fP
 	channelAdjustment := metadata.audioChannels / metadata.fprintChannels        // 2
 	startIndex := int(fprintStart * metadata.calcSamplesPerFprint * sampleRateAdjustment * channelAdjustment * byteDepth)
 	stopIndex := int(fPrintStop * metadata.calcSamplesPerFprint * sampleRateAdjustment * channelAdjustment * byteDepth)
-	// latch the start index to the beginning of a sample
+	// latch the indices to the beginning of a sample
 	for ; startIndex%int(byteDepth*metadata.audioChannels) != 0; startIndex++ {
+	}
+	for ; stopIndex%int(byteDepth*metadata.audioChannels) != 0; stopIndex-- {
 	}
 	r := bytes.NewBuffer(data[startIndex:stopIndex])
 	_, err = r.WriteTo(enc)
