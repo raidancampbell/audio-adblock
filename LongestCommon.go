@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"math"
 )
+// TOLERANCE_FACTOR holds "how close, across the range of all int32 values,
+// should two values be in order for them to be considered equal"
+const TOLERANCE_FACTOR = 0.3
 
-// taken from wikipedia's pseudocode: https://en.wikipedia.org/wiki/Longest_common_substring_problem
-func LCSub(a, b []int32) (length, stopA, stopB int) {
-	tmp := float64(math.MaxInt32) * 0.3
+// LCSub finds the longest common subsequence of the given int32 slices
+// the length and stop locations of each input are returned
+// implementation is from wikipedia's pseudocode: https://en.wikipedia.org/wiki/Longest_common_substring_problem
+func LCSub(a, b []int32) (length, aStop, bStop float64) {
+	tmp := float64(math.MaxInt32) * TOLERANCE_FACTOR
 	tolerance := int32(tmp)
 	r, n := len(a), len(b)
+	var stopA, stopB int
 	z := 0
 	l := make([][]int32, r)
 	for i := range l {
@@ -33,12 +39,12 @@ func LCSub(a, b []int32) (length, stopA, stopB int) {
 					// ret := ret ∪ {S[i − z + 1..i]}
 				}
 			} else {
-				l[i][j] = 0
+				//l[i][j] = 0
 			}
 		}
 	}
 	_ = fmt.Sprintf("%d", ret) // just in case I want it later
-	return z, stopA, stopB
+	return float64(z), float64(stopA), float64(stopB)
 }
 
 func closeEnough(A, B, tolerance int32) bool {
