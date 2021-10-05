@@ -6,7 +6,7 @@ import (
 
 // TOLERANCE_FACTOR holds "how close, across the range of all int32 values,
 // should two values be in order for them to be considered equal"
-const TOLERANCE_FACTOR = 0.05
+const TOLERANCE_FACTOR = 0.3
 
 // LCSubs finds the longest common subsequence of the given int32 slices
 // the length and stop locations of each input are returned

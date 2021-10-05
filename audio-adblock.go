@@ -12,8 +12,9 @@ import (
 
 // 16-bit audio == 2 bytes
 const byteDepth = 2.0
+
 // what's the smallest subsequence in seconds that should be considered a duplicate
-const minDurationSec = 5.0
+const minDurationSec = 10.0
 
 func main() {
 	fmt.Println("reading in files...")
@@ -36,7 +37,7 @@ func main() {
 	wg.Wait()
 
 	fmt.Println("files read in.  Finding longest subsequences...")
-	gt := minDurationSec/(metadata1.calcSamplesPerFprint/metadata1.fprintSampleRate)
+	gt := minDurationSec / (metadata1.calcSamplesPerFprint / metadata1.fprintSampleRate)
 
 	matches := LCSubs(metadata1.fingerprints, metadata2.fingerprints, int(gt))
 	aStarts, aStops := make([]float64, len(matches)), make([]float64, len(matches))
@@ -65,7 +66,6 @@ func main() {
 	wg.Wait()
 }
 
-// TODO: one fingerprint's worth of static during patchwork
 func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts, fprintStops []float64, data []byte) error {
 	if len(fprintStops) != len(fprintStarts) {
 		panic("input fingerprint index arrays are not of equal length")
@@ -85,10 +85,11 @@ func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts
 		}
 		for ; stopIndex%(int(byteDepth)*int(metadata.audioChannels)) != 0; stopIndex-- {
 		}
+		stopIndex-- // 0, 1, 2, 3. back up one
 		// create a slice of all data indices held within this subsequence
-		slice := make([]int, stopIndex - startIndex)
+		slice := make([]int, stopIndex-startIndex+1)
 		_i := 0
-		for i := startIndex; i < stopIndex; i++ {
+		for i := startIndex; i <= stopIndex; i++ {
 			slice[_i] = i
 			_i++
 		}
@@ -100,7 +101,10 @@ func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts
 		return filteredIndices[i] < filteredIndices[j]
 	})
 
-	redactedData := make([]byte, (len(data) - len(filteredIndices)) + 1)
+	// remove duplicate sections
+	filteredIndices = RemoveDuplicates(filteredIndices)
+
+	redactedData := make([]byte, (len(data)-len(filteredIndices))+1)
 
 	// index that we're writing data to
 	redactedIdx := 0
@@ -109,13 +113,14 @@ func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts
 	// for each byte in the source data
 	for i := range data {
 		// if we're not already past the last filter section, check if the current data index should be omitted
-		if (filterIdx < len(filteredIndices) && i != filteredIndices[filterIdx]) || filterIdx > len(filteredIndices) {
-			if redactedIdx > cap(redactedData) {
-				break
-			}
+		if filterIdx < len(filteredIndices) && i != filteredIndices[filterIdx] {
 			// if it should be included, then write it and increment the writing index
 			redactedData[redactedIdx] = data[i]
 			redactedIdx++
+			// if we are past the last filter section, just accept everything
+		} else if filterIdx >= len(filteredIndices) {
+			// if it should be included, then write it and increment the writing index
+			redactedData[redactedIdx] = data[i]
 		} else {
 			// if it should not be included, then increment the filter index
 			filterIdx++
@@ -141,7 +146,7 @@ func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts
 // writeMatchesToFile is a function useful for debugging: given a data/metadata stream and the start/stop indices of the
 // fingerprint matches, the equivalent data is written to a file.  This is useful for diagnosing "is this actually identical"
 // and whether the matcher is working as expected
-func writeMatchesToFile(filename string, metadata audioMetadata, fprintStart, fPrintStop float64, data []byte) error{
+func writeMatchesToFile(filename string, metadata audioMetadata, fprintStart, fPrintStop float64, data []byte) error {
 	// data bytes, starting at the beginning of the matched fingerprint
 	// then multiplied by samples included in each fingerprint
 	// then adjusted by the internal fingerprinting sample rate vs source's sample rate
@@ -170,4 +175,17 @@ func writeMatchesToFile(filename string, metadata audioMetadata, fprintStart, fP
 	}
 	enc.Close()
 	return of.Close()
+}
+
+func RemoveDuplicates(s []int) []int {
+	e := 1
+	for i := 1; i < len(s); i++ {
+		if s[i] == s[i-1] {
+			continue
+		}
+		s[e] = s[i]
+		e++
+	}
+
+	return s[:e]
 }
