@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/pkg/profile"
 	"github.com/viert/go-lame"
+	"golang.org/x/sync/errgroup"
 	"os"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -17,24 +19,25 @@ const byteDepth = 2.0
 const minDurationSec = 10.0
 
 func main() {
+	defer profile.Start().Stop()
 	fmt.Println("reading in files...")
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	var metadata1 = audioMetadata{}
-	var data1 []byte
-	go func() {
+	g, _ := errgroup.WithContext(context.Background())
+	metadata1, metadata2 := audioMetadata{}, audioMetadata{}
+	data1, data2 := []byte{},[]byte{}
+	g.Go(func() error {
 		var err error
 		data1, metadata1, err = readFile("input/94.mp3")
-		if err != nil {
-			panic(err)
-		}
-		wg.Done()
-	}()
-	data2, metadata2, err := readFile("input/96.mp3")
-	if err != nil {
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		data2, metadata2, err = readFile("input/96.mp3")
+		return err
+	})
+
+	if err := g.Wait(); err != nil {
 		panic(err)
 	}
-	wg.Wait()
 
 	fmt.Println("files read in.  Finding longest subsequences...")
 	gt := minDurationSec / (metadata1.calcSamplesPerFprint / metadata1.fprintSampleRate)
@@ -51,19 +54,17 @@ func main() {
 		bStops[matchNum] = match.BStop
 	}
 
-	wg.Add(1)
-	go func() {
-		err = writeNonmatchesToFile("A.mp3", metadata1, aStarts, aStops, data1)
-		if err != nil {
-			panic(err)
-		}
-		wg.Done()
-	}()
-	err = writeNonmatchesToFile("B.mp3", metadata2, bStarts, bStops, data2)
+	fmt.Println("encoding and output...")
+	g.Go(func() error{
+		return writeNonmatchesToFile("A.mp3", metadata1, aStarts, aStops, data1)
+	})
+	g.Go(func() error {
+		return writeNonmatchesToFile("B.mp3", metadata2, bStarts, bStops, data2)
+	})
+	err := g.Wait()
 	if err != nil {
 		panic(err)
 	}
-	wg.Wait()
 }
 
 func writeNonmatchesToFile(filename string, metadata audioMetadata, fprintStarts, fprintStops []float64, data []byte) error {
@@ -178,6 +179,9 @@ func writeMatchesToFile(filename string, metadata audioMetadata, fprintStart, fP
 }
 
 func RemoveDuplicates(s []int) []int {
+	if len(s) < 2 {
+		return s
+	}
 	e := 1
 	for i := 1; i < len(s); i++ {
 		if s[i] == s[i-1] {

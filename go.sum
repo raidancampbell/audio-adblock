@@ -2,6 +2,8 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-fingerprint/fingerprint v0.0.0-20140803133125-29397256b7ff h1:MVMRAz9+9uI8+nzBPHILUVLNzH+jaKKmGmEf5GrgNsM=
 github.com/go-fingerprint/fingerprint v0.0.0-20140803133125-29397256b7ff/go.mod h1:p+iFTUBRUOKBOZtWQCQAZHhLI7fC5bMdiDc5B4PPBU0=
+github.com/pkg/profile v1.6.0 h1:hUDfIISABYI59DyeB3OTay/HxSRwTQ8rB/H83k6r5dM=
+github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/raidancampbell/gochroma v0.0.0-20211002152444-2a4e1cdd13b9 h1:g/HbYMWfr/j8Mssb1tr6pj6JQu607WE1k3QKR/EutG0=
@@ -13,6 +15,8 @@ github.com/tosone/minimp3 v0.0.0-20210225113649-a34145f13bef h1:dmRx03KBuuCzZ6KI
 github.com/tosone/minimp3 v0.0.0-20210225113649-a34145f13bef/go.mod h1:WFso0UvZL1fPit45V6RQPKxbehLI4XZaJyLs2/TJHoU=
 github.com/viert/go-lame v0.0.0-20201108052322-bb552596b11d h1:LptdD7GTUZeklomtW5vZ1AHwBvDBUCZ2Ftpaz7uEI7g=
 github.com/viert/go-lame v0.0.0-20201108052322-bb552596b11d/go.mod h1:EqTcYM7y4JlSfeTI47pmNu3EZQuCuLQefsQyg1Imlz8=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
