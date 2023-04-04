@@ -8,6 +8,7 @@ import (
 	"github.com/viert/go-lame"
 	"golang.org/x/sync/errgroup"
 	"os"
+	"runtime/trace"
 	"sort"
 	"time"
 )
@@ -19,18 +20,26 @@ const byteDepth = 2.0
 const minDurationSec = 10.0
 
 func main() {
-	defer profile.Start().Stop()
+	defer profile.Start(profile.TraceProfile).Stop()
+	ctx, task := trace.NewTask(context.Background(), "processFile")
+	defer task.End()
 	fmt.Println("reading in files...")
-	g, _ := errgroup.WithContext(context.Background())
+	g, _ := errgroup.WithContext(ctx)
 	metadata1, metadata2 := audioMetadata{}, audioMetadata{}
-	data1, data2 := []byte{},[]byte{}
+	data1, data2 := []byte{}, []byte{}
 	g.Go(func() error {
 		var err error
+		region := trace.StartRegion(ctx, "readFile")
+		defer region.End()
+		trace.Log(ctx, "input/filename", "input/94.mp3")
 		data1, metadata1, err = readFile("input/94.mp3")
 		return err
 	})
 	g.Go(func() error {
 		var err error
+		region := trace.StartRegion(ctx, "readFile")
+		defer region.End()
+		trace.Log(ctx, "input/filename", "input/96.mp3")
 		data2, metadata2, err = readFile("input/96.mp3")
 		return err
 	})
@@ -42,7 +51,11 @@ func main() {
 	fmt.Println("files read in.  Finding longest subsequences...")
 	gt := minDurationSec / (metadata1.calcSamplesPerFprint / metadata1.fprintSampleRate)
 
-	matches := LCSubs(metadata1.fingerprints, metadata2.fingerprints, int(gt))
+	var matches []Match
+	trace.WithRegion(ctx, "logestSubsequence", func() {
+		matches = LCSubs(metadata1.fingerprints, metadata2.fingerprints, int(gt))
+	})
+
 	aStarts, aStops := make([]float64, len(matches)), make([]float64, len(matches))
 	bStarts, bStops := make([]float64, len(matches)), make([]float64, len(matches))
 	for matchNum, match := range matches {
@@ -55,11 +68,21 @@ func main() {
 	}
 
 	fmt.Println("encoding and output...")
-	g.Go(func() error{
-		return writeNonmatchesToFile("A.mp3", metadata1, aStarts, aStops, data1)
+	g.Go(func() error {
+		var err error
+		region := trace.StartRegion(ctx, "writeFile")
+		defer region.End()
+		trace.Log(ctx, "output/filename", "A.mp3")
+		err = writeNonmatchesToFile("A.mp3", metadata1, aStarts, aStops, data1)
+		return err
 	})
 	g.Go(func() error {
-		return writeNonmatchesToFile("B.mp3", metadata2, bStarts, bStops, data2)
+		var err error
+		region := trace.StartRegion(ctx, "writeFile")
+		defer region.End()
+		trace.Log(ctx, "output/filename", "B.mp3")
+		err = writeNonmatchesToFile("B.mp3", metadata2, bStarts, bStops, data2)
+		return err
 	})
 	err := g.Wait()
 	if err != nil {

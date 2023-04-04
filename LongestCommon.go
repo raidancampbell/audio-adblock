@@ -52,14 +52,15 @@ func closeEnough(A, B, tolerance int32) bool {
 		return int32Abs(A-B) < tolerance
 	}
 	if A >= 0 && B < 0 {
-		return int32Abs(A - int32Abs(B)) < tolerance
+		return int32Abs(A-int32Abs(B)) < tolerance
 	}
 	if A < 0 && B >= 0 {
-		return int32Abs(int32Abs(A) - B) < tolerance
+		return int32Abs(int32Abs(A)-B) < tolerance
 	}
-	return int32Abs(int32Abs(A) - int32Abs(B)) < tolerance
+	return int32Abs(int32Abs(A)-int32Abs(B)) < tolerance
 }
 
+//go:noinline
 func int32Abs(i int32) int32 {
 	mask := i >> 31
 	return (mask + i) ^ mask
